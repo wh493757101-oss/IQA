@@ -6,8 +6,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 BASE_URL = "http://127.0.0.1:8000"
-PREDS_DIR = "preds"
-GTS_DIR = "gts"
+PREDS_DIR = "data/preds"
+GTS_DIR = "data/gts"
 SUPPORTED_EXTS = ('.jpg', '.jpeg', '.png', '.bmp')
 def submit_single_pair(filename):
     """判断图片是否携带GT"""
@@ -55,6 +55,27 @@ def generate_visual_report(tasks_info):
         return
 
     df = pd.DataFrame(data)
+
+    def assert_quality(row):
+        PSNR_THRESHOLD = 30.0  
+        BRISQUE_THRESHOLD = 50.0
+        if row['Mode'] == 'FR' and pd.notnull(row['PSNR_dB']):
+            return ' PASS' if row['PSNR_dB'] >= PSNR_THRESHOLD else ' FAIL'
+        elif row['Mode'] == 'NR' and pd.notnull(row['BRISQUE_Score']):
+            return ' PASS' if row['BRISQUE_Score'] <= BRISQUE_THRESHOLD else ' FAIL'
+        return ' UNKNOWN'
+
+    
+    df['Test_Result'] = df.apply(assert_quality, axis=1)
+    total_cases = len(df)
+    failed_cases = len(df[df['Test_Result'] == ' FAIL'])
+    defect_rate = (failed_cases / total_cases) * 100 if total_cases > 0 else 0
+
+    print("\n" + "="*45)
+    print(f"  Automated image quality regression test completed!")
+    print(f"Total test cases: {total_cases} images")
+    print(f"Defects found: {failed_cases} images (Defect rate: {defect_rate:.2f}%)")
+    print("="*45 + "\n")
 
     df.to_csv("iqa_evaluation_report.csv", index=False, encoding="utf-8-sig")
     print("  Data exported: iqa_evaluation_report.csv")
