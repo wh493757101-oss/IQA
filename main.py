@@ -9,16 +9,26 @@ import time
 import json
 import os
 import urllib.request
-import redis 
+import redis
+import logging
 
-app = FastAPI()
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+app = FastAPI(
+    title="VisionGuard API ",
+    description="图像质量评测平台",
+    version="1.0.0"
+)
 try:
-    #redis_client = redis.Redis(host='redis-server', port=6379, db=0, decode_responses=True)  #Docker
-    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    redis_client = redis.Redis(host='redis-server', port=6379, db=0, decode_responses=True)  #Docker
     redis_client.ping()
-    print("  Redis connected successfully!")
+    logging.info("Redis connected successfully!")
 except Exception as e:
-    print(f"  Warning: Redis connection failed, ensure Redis is running: {e}")
+    logging.warning(f"Redis connection failed, ensure Redis is running: {e}")
 def ensure_brisque_models():
     os.makedirs("models", exist_ok=True)
     files = {
@@ -28,10 +38,10 @@ def ensure_brisque_models():
     for filename, url in files.items():
         if not os.path.exists(filename):
            try:
-                urllib.request.urlretrieve(url, filepath)
-                print(f"  Successfully downloaded {filepath}")
+                urllib.request.urlretrieve(url, filename)
+                logging.info(f"Downloaded {filename}")
            except Exception as e:
-                print(f"  Warning: Failed to download {filepath}: {e}")
+                logging.warning(f"Failed to download {filename}: {e}")
 
 ensure_brisque_models()
 
@@ -74,10 +84,10 @@ def background_evaluation_worker(task_id: str, filename: str, pred_bytes: bytes,
             "metrics_json": json.dumps(metrics_json),
             "cost_time_ms": str(cost_time)
         })
-        print(f"  [Background] Task {task_id} completed! Mode: {metrics_json['Mode']}")
+        logging.info(f"Background task {task_id} completed! Mode: {metrics_json['Mode']}")
 
     except Exception as e:
-        print(f"  [Background] Task {task_id} failed: {str(e)}")
+        logging.error(f"Background task {task_id} failed: {str(e)}")
         redis_client.hset(redis_key, mapping={"status": "failed", "error": str(e)})
 
 @app.post("/api/v1/submit_eval")

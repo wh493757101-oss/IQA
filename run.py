@@ -4,6 +4,13 @@ import requests
 import concurrent.futures
 import pandas as pd
 import matplotlib.pyplot as plt
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 BASE_URL = "http://127.0.0.1:8000"
 PREDS_DIR = "data/preds"
@@ -37,7 +44,7 @@ def submit_single_pair(filename):
         if f_gt:
             f_gt.close()
 def generate_visual_report(tasks_info):
-    print("\n Generate visual reports...")
+    logging.info("Generating visual reports...")
 
     data = []
     for task in tasks_info:
@@ -51,7 +58,7 @@ def generate_visual_report(tasks_info):
             })
 
     if not data:
-        print(" Incomplete ")
+        logging.warning("Incomplete data for report generation")
         return
 
     df = pd.DataFrame(data)
@@ -71,14 +78,12 @@ def generate_visual_report(tasks_info):
     failed_cases = len(df[df['Test_Result'] == ' FAIL'])
     defect_rate = (failed_cases / total_cases) * 100 if total_cases > 0 else 0
 
-    print("\n" + "="*45)
-    print(f"  Automated image quality regression test completed!")
-    print(f"Total test cases: {total_cases} images")
-    print(f"Defects found: {failed_cases} images (Defect rate: {defect_rate:.2f}%)")
-    print("="*45 + "\n")
+    logging.info("Automated image quality regression test completed!")
+    logging.info(f"Total test cases: {total_cases} images")
+    logging.info(f"Defects found: {failed_cases} images (Defect rate: {defect_rate:.2f}%)")
 
     df.to_csv("iqa_evaluation_report.csv", index=False, encoding="utf-8-sig")
-    print("  Data exported: iqa_evaluation_report.csv")
+    logging.info("Data exported: iqa_evaluation_report.csv")
 
     df_fr = df[df["PSNR_dB"].notnull()]
     df_nr = df[df["BRISQUE_Score"].notnull()]
@@ -107,11 +112,11 @@ def generate_visual_report(tasks_info):
 
     plt.tight_layout()
     plt.savefig("iqa_visual_report.png", dpi=300)
-    print("  Visual report saved: iqa_visual_report.png")
+    logging.info("Visual report saved: iqa_visual_report.png")
 
 def run_batch_test():
     if not os.path.exists(PREDS_DIR) or not os.path.exists(GTS_DIR):
-        print(f"  Error: {PREDS_DIR} or {GTS_DIR} directory not found!")
+        logging.error(f"{PREDS_DIR} or {GTS_DIR} directory not found!")
         return
 
     valid_files = [
@@ -120,10 +125,10 @@ def run_batch_test():
     ]
 
     if not valid_files:
-        print(f"  Warning: {PREDS_DIR} is empty or no supported image formats (jpg/png/bmp)!")
+        logging.warning(f"{PREDS_DIR} is empty or no supported image formats (jpg/png/bmp)!")
         return
 
-    print(f"  Found {len(valid_files)} images to evaluate, submitting in parallel...")
+    logging.info(f"Found {len(valid_files)} images to evaluate, submitting in parallel...")
     
     tasks_info = []
 
@@ -134,13 +139,13 @@ def run_batch_test():
             result = future.result()
             if "task_id" in result:
                 tasks_info.append(result)
-                print(f"  Submitted: {result['filename']} -> TaskID: {result['task_id'][:8]}...")
+                logging.info(f"Submitted: {result['filename']} -> TaskID: {result['task_id'][:8]}...")
             else:
-                print(f"  Failed: {result['filename']} - {result.get('error')}")
+                logging.error(f"Failed: {result['filename']} - {result.get('error')}")
 
-    print(f"  All tasks submitted! Time: {time.time() - submit_start:.2f}s\n")
+    logging.info(f"All tasks submitted! Time: {time.time() - submit_start:.2f}s")
 
-    print("  Monitoring background processing...")
+    logging.info("Monitoring background processing...")
     completed_count = 0
     total_tasks = len(tasks_info)
 
@@ -168,17 +173,17 @@ def run_batch_test():
                     else:
                         score = f"Clarity: {res['metrics'].get('Clarity_Score')}"
 
-                print(f"  [Done] {task['filename']} | {mode} | {score}")
+                logging.info(f"[Done] {task['filename']} | {mode} | {score}")
                 completed_count += 1
 
             elif res["status"] == "failed":
-                print(f"  [Failed] {task['filename']} - Backend processing crashed.")
+                logging.error(f"[Failed] {task['filename']} - Backend processing crashed.")
                 completed_count += 1
 
         if completed_count < total_tasks:
             time.sleep(1)
 
-    print("\n  Batch evaluation completed!")
+    logging.info("Batch evaluation completed!")
     generate_visual_report(tasks_info)
 
 if __name__ == "__main__":
