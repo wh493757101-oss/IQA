@@ -29,5 +29,7 @@ jobs:
         pip install pytest pytest-cov httpx
 
     - name: 运行 Pytest 与覆盖率检查
+      env:
+        PYTHONPATH: .
       run: |
         pytest tests/ --cov=main --cov-report=xml
