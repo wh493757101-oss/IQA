@@ -26,3 +26,4 @@ data/gts/*
 .pytest_cache/
 htmlcov/
 .coverage
+tools/

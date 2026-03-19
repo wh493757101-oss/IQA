@@ -133,7 +133,7 @@ def run_batch_test():
     tasks_info = []
 
     submit_start = time.time()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=200) as executor:
         futures = {executor.submit(submit_single_pair, f): f for f in valid_files}
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
