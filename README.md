@@ -33,6 +33,9 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
+```bash
+python worker.py
+```
 
 ### 2. 运行批量评估
 
