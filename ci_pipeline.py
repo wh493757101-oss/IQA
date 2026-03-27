@@ -5,52 +5,12 @@ import datetime
 from run_qa_agent import run_agent
 import sys
 import requests
+from planner_agent import generate_dynamic_test_matrix
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [CI_PIPELINE] - %(message)s')
 
-
-PROMPT_MATRIX = {
-    "Security_Validation": [
-        {
-            "name": "PDF_Upload_Spoofing",
-            "prompt": "模拟用户上传了一个非图片文件，并尝试将 Content-Type 伪装成 image/jpeg，验证网关的安全拦截能力。"
-        },
-        {
-            "name": "Empty_File_Attack",
-            "prompt": "编写测试脚本，模拟用户上传一个 0 字节的空文件，验证网关是否会抛出 422/400 错误正确拒绝，防止后端 OOM。"
-        }
-    ],
-    "Algorithm_Robustness": [
-        {
-            "name": "1x1_Pixel_Extreme",
-            "prompt": "利用 numpy 或 base64 生成并上传一张只有 1x1 像素的极小图片进行评测，观察它在网关中是返回 202，还是在轮询状态时触发底层的计算失败。"
-        },
-        {
-            "name": "Invalid_Base64_Payload",
-            "prompt": "不要上传真实图片，故意上传一段损坏的图片二进制流（比如包含乱码），看看 OpenCV 解码时是否会把你的 worker 进程搞崩。注意：如果网关直接返回 422 成功拦截了它，说明网关防御极强，脏数据根本进不到 Worker，请直接认定测试通过，输出 ✅ 防御成功的报告，绝对不要纠结和死磕！"
-        }
-    ],
-    "WhiteBox_Unit_Test": [
-        {
-            "name": "Worker_NR_Branch_Logic",
-          "prompt": "这是一个白盒单元测试任务。请直接 `from worker import process_single_task`。注意：绝对不要硬编码捏造损坏的 base64 字符串！你必须使用 `cv2.imencode('.jpg', np.zeros((100, 100, 3), dtype=np.uint8))` 动态生成一段绝对合法的图像 Base64。构造包含 'task_id', 'filename', 'pred_b64' 的字典，mock Redis 后调用函数，并断言返回 True。"
-        },
-        {
-            "name": "Full_Flow_Integration",
-           "prompt": "编写端到端异步集成测试。请注意：沙箱环境中没有后台 worker 进程！你的测试流程必须是：1. 用 httpx.AsyncClient 上传合法图片拿到 task_id。2. 极其重要：必须在测试脚本中手动引入并调用 `process_single_task` 去强制消费这个任务！3. 再次请求 task_status 接口验证状态是否变为了 completed。"
-        }
-    ],
-    "Performance_Load": [
-        {
-            "name": "Locust_Gateway_Spike",
-            "prompt": "这是一项性能打流任务。编写标准 locustfile.py。注意两点：1. 图片必须使用 numpy 生成大于 10x10 像素的合法图像。2. 在 @task 中使用纯粹的 `self.client.post` 发送请求即可，如果网关返回 422 也算作压测正常损耗。严禁重写或调用 `self.environment.events.request.fire` 去篡改底层统计数据！"
-        }
-    ]
-}
-
 def generate_master_report(results: list, output_dir: str):
-    # 将总表也保存在这个专属目录下
-    master_file = os.path.join(output_dir, "🏆_VisionGuard_CI_Master_Report.md")
+    master_file = os.path.join(output_dir, "VisionGuard_CI_Master_Report.md")
     
     with open(master_file, "w", encoding="utf-8") as f:
         f.write("#  VisionGuard CI/CD 自动化检测\n\n")
@@ -80,8 +40,8 @@ def send_im_alert(vuln_count: int, report_dir: str, details: list, run_url: str)
     content = (
         f" **VisionGuard 安全警报** \n\n"
         f"QA Agent 刚刚在 GitHub CI 检测中出现问题！\n"
-        f"- **发现漏洞数**: {vuln_count} 个高危漏洞！\n"
-        f"- **被攻破模块**: {', '.join(details)}\n\n"
+        f"- 发现漏洞数: {vuln_count} 个高危漏洞！\n"
+        f"- 被攻破模块: {', '.join(details)}\n\n"
         f" [点击此处下载完整检测报告]({run_url})"
     )
     

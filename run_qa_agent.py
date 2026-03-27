@@ -145,7 +145,18 @@ def run_agent(test_name: str, user_instruction: str, output_dir: str = None) -> 
         if response_message.tool_calls:
             for tool_call in response_message.tool_calls:
                 function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
+                try:
+                    function_args = json.loads(tool_call.function.arguments)
+                except Exception as e:
+                    logging.error(f" 生成非法 JSON 格式: {e}")
+                    
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": f"系统错误: 你的参数 JSON 格式不合法 ({e})。请确保你生成的 Python 代码字符串正确转义了引号和换行符，并保持代码极简！"
+                    })
+                    continue 
                 
                 logging.info(f"  Agent 调用工具: {function_name}")
                 
