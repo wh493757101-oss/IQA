@@ -112,9 +112,6 @@ SYSTEM_PROMPT = """
 3. 只有当恶意文件收到了 202，才说明存在漏洞，此时也请停止工具调用并输出包含“发现漏洞”的报告。
 """
 
-# ==========================================
-# 3. 核心流转引擎 (带有 CI 返回值)
-# ==========================================
 def run_agent(test_name: str, user_instruction: str, output_dir: str = None) -> dict:
     report = MarkdownReporter(test_name=test_name, output_dir=output_dir)
     report.append_text(" 测试任务目标", user_instruction)
