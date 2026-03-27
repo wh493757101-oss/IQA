@@ -5,20 +5,25 @@ services:
     image: redis:alpine   
     ports:
       - "6379:6379"
+    restart: always 
 
   api-gateway:
-    build: .            
+    image: wh493757101-oss/visionguard:latest
     ports:
       - "8000:8000"
     depends_on:
       - redis-server    
-
+    restart: always
+    environment:
+      - REDIS_HOST=redis-server 
 
   vision-worker:
-    build: .                 
+    image: wh493757101-oss/visionguard:latest
     command: python worker.py 
     depends_on:
       - redis-server        
-    
-    # deploy:
-    #   replicas: 3        
+    restart: always
+    environment:
+      - REDIS_HOST=redis-server
+    deploy:
+      replicas: 3

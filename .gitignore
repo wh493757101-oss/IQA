@@ -27,3 +27,4 @@ data/gts/*
 htmlcov/
 .coverage
 tools/
+test_reports/
