@@ -92,4 +92,4 @@ jobs:
             docker stop visionguard-gateway || true
             docker rm visionguard-gateway || true
             docker run -d --name visionguard-gateway -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/visionguard:latest
-            echo " 部署完成！"
+            echo " 部署完成"
