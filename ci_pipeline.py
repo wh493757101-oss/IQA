@@ -33,17 +33,17 @@ PROMPT_MATRIX = {
     "WhiteBox_Unit_Test": [
         {
             "name": "Worker_NR_Branch_Logic",
-           "prompt": "这是一个白盒单元测试任务。请在沙箱中直接 `from worker import process_single_task`。请构造一个合法的 task_data 字典（注意：必须包含 'task_id', 'filename', 'pred_b64' 这三个 key，不要 gt_b64），使用 `unittest.mock.MagicMock` 来 mock Redis 客户端并调用函数。验证代码是否正确进入了 NR-IQA 分支。"
+          "prompt": "这是一个白盒单元测试任务。请直接 `from worker import process_single_task`。注意：绝对不要硬编码捏造损坏的 base64 字符串！你必须使用 `cv2.imencode('.jpg', np.zeros((100, 100, 3), dtype=np.uint8))` 动态生成一段绝对合法的图像 Base64。构造包含 'task_id', 'filename', 'pred_b64' 的字典，mock Redis 后调用函数，并断言返回 True。"
         },
         {
             "name": "Full_Flow_Integration",
-            "prompt": "请编写一个完整的端到端异步集成测试。使用 `httpx.AsyncClient` 配合 `main.py` 的 app 对象，模拟上传一张真实图片，拿到 task_id 后，立刻去 Redis 队列里把任务取出来扔给 `worker.py` 执行，最后再次请求 task_status 接口验证状态是否变为了 completed。输出整个链路的代码覆盖率。"
+           "prompt": "编写端到端异步集成测试。请注意：沙箱环境中没有后台 worker 进程！你的测试流程必须是：1. 用 httpx.AsyncClient 上传合法图片拿到 task_id。2. 极其重要：必须在测试脚本中手动引入并调用 `process_single_task` 去强制消费这个任务！3. 再次请求 task_status 接口验证状态是否变为了 completed。"
         }
     ],
     "Performance_Load": [
         {
             "name": "Locust_Gateway_Spike",
-            "prompt": "这是一项性能打流任务。请编写一个标准的 locustfile.py。在 `HttpUser` 中编写任务，不断向 `/api/v1/submit_eval` 接口发送 multipart/form-data 请求。为了减少网络带宽瓶颈干扰，请在代码中用 base64 生成一个极其微小的合法 10x10 像素 PNG 图片进行上传。写好后调用 execute_locust_load_test 工具执行压测，并根据返回的汇总表格，在报告中分析网关的 QPS 吞吐量和 P99 响应延迟。"
+            "prompt": "这是一项性能打流任务。编写标准 locustfile.py。注意两点：1. 图片必须使用 numpy 生成大于 10x10 像素的合法图像。2. 在 @task 中使用纯粹的 `self.client.post` 发送请求即可，如果网关返回 422 也算作压测正常损耗。严禁重写或调用 `self.environment.events.request.fire` 去篡改底层统计数据！"
         }
     ]
 }
@@ -79,10 +79,10 @@ def send_im_alert(vuln_count: int, report_dir: str, details: list, run_url: str)
 
     content = (
         f" **VisionGuard 安全警报** \n\n"
-        f"QA Agent 刚刚在 GitHub CI 检测中打崩了网关！\n"
+        f"QA Agent 刚刚在 GitHub CI 检测中出现问题！\n"
         f"- **发现漏洞数**: {vuln_count} 个高危漏洞！\n"
         f"- **被攻破模块**: {', '.join(details)}\n\n"
-        f" [点击此处下载完整体检报告]({run_url})"
+        f" [点击此处下载完整检测报告]({run_url})"
     )
     
     payload = {

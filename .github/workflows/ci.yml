@@ -37,7 +37,7 @@ jobs:
         nohup python main.py > gateway.log 2>&1 &
         sleep 5 
 
-    - name:  启动 AI QA Agent 进行黑白盒攻防体检
+    - name:  启动 AI QA Agent 进行黑白盒攻防检测
       env:
         DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         IM_WEBHOOK_URL: ${{ secrets.IM_WEBHOOK_URL }}
