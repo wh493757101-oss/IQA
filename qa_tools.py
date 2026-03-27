@@ -108,27 +108,46 @@ def execute_pytest_code(code_string: str) -> str:
     finally:
         if os.path.exists(file_name):
             os.remove(file_name)
+# 请原封不动追加到 qa_tools.py 的最下面，并按 Ctrl+S 保存：
+
 def execute_locust_load_test(code_string: str) -> str:
-    """工具 4：让 AI 编写 Locust 脚本并执行真实并发压测"""
+    """
+    工具 4：让 AI 编写 Locust 压测脚本，并在沙箱中拉起并发打流。
+    """
     file_name = "locustfile.py"
     try:
         with open(file_name, "w", encoding="utf-8") as f:
             f.write(code_string)
             
-        logging.info("正在启动 Locust 压测...")
+        logging.info(" 正在启动 Locust 性能压测...")
         
         locust_args = [
             "locust", "-f", file_name, 
-            "--headless", "-u", "500", "-r", "10", "--run-time", "60s"
+            "--headless", "-u", "100", "-r", "20", "--run-time", "10s"
         ]
         
-        result = subprocess.run(locust_args, capture_output=True, text=True, timeout=45)
-        return f"Locust 压测结果:\nExit Code: {result.returncode}\n--- 压测报告 ---\n{result.stdout}"
+        result = subprocess.run(locust_args, capture_output=True, text=True, timeout=30)
         
+        execution_summary = (
+            f"Locust Exit Code: {result.returncode}\n"
+            f"--- 压测输出与 QPS 报告 ---\n{result.stdout}\n"
+            f"--- STDERR ---\n{result.stderr}"
+        )
+        
+        if result.returncode == 0 or "Aggregated" in result.stdout:
+            logging.info(" Locust 压测执行完毕，已生成性能报告！")
+        else:
+            logging.warning(" Locust 压测执行异常...")
+            
+        return execution_summary
+
+    except subprocess.TimeoutExpired:
+        return "Execution Error: Locust run timed out. Please check if the script blocks."
     except Exception as e:
-        return f"Locust 执行异常: {str(e)}"
+        return f"System Error during execution: {str(e)}"
     finally:
-        if os.path.exists(file_name): os.remove(file_name)
+        if os.path.exists(file_name):
+            os.remove(file_name)
 
 if __name__ == "__main__":
     print("\n--- Testing Tool 3: Execute Pytest Code ---")

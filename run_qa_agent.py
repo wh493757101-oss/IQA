@@ -38,14 +38,15 @@ class MarkdownReporter:
             f.write(f"###  {title}\n\n```text\n{result}\n```\n\n---\n")
 
 client = OpenAI(
-    api_key="sk-bbc6b57c5cc940ac994ab60cfddd0910", # 你的真实 API Key 保持不变
+    api_key="sk-bbc6b57c5cc940ac994ab60cfddd0910",
     base_url="https://api.deepseek.com"
 )
 
 AVAILABLE_TOOLS = {
     "fetch_openapi_spec": fetch_openapi_spec,
     "query_redis_backend": query_redis_backend,
-    "execute_pytest_code": execute_pytest_code
+    "execute_pytest_code": execute_pytest_code,
+    "execute_locust_load_test": execute_locust_load_test
 }
 
 TOOLS_SCHEMA = [
@@ -179,7 +180,6 @@ def run_agent(test_name: str, user_instruction: str, output_dir: str = None) -> 
             final_content = response_message.content
             report.append_text("  最终诊断报告", final_content)
             
-            # 【核心逻辑】：通过 AI 最后给出报告的关键字，判定系统这波抗住了没有
             if "漏洞" in final_content or "Bug" in final_content or "缺陷" in final_content:
                 status = " 发现漏洞"
             elif "通过" in final_content or "成功" in final_content or "拒绝了" in final_content:
