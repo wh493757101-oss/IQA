@@ -38,7 +38,7 @@ def send_im_alert(vuln_count: int, report_dir: str, details: list, run_url: str)
         return
 
     content = (
-        f" **VisionGuard 安全警报** \n\n"
+        f" VisionGuard 安全警报 \n\n"
         f"QA Agent 刚刚在 GitHub CI 检测中出现问题！\n"
         f"- 发现漏洞数: {vuln_count} 个高危漏洞！\n"
         f"- 被攻破模块: {', '.join(details)}\n\n"
@@ -61,6 +61,7 @@ def send_im_alert(vuln_count: int, report_dir: str, details: list, run_url: str)
 
 
 def run_pipeline():
+    PROMPT_MATRIX = generate_dynamic_test_matrix()
     logging.info(" 启动 VisionGuard CI 流水线...")
     
     base_report_dir = "test_reports"
