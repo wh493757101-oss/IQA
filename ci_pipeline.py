@@ -74,7 +74,7 @@ def run_pipeline():
     all_results = []
     vuln_count = 0
     vuln_modules = []
-    
+    FAILED_STATUSES = ["发现漏洞", "Agent 运行超时", "框架级错误", "需人工复核"]
     for category, tests in PROMPT_MATRIX.items():
         logging.info(f"\n>>> 开始检测: [{category}] <<<")
         
@@ -88,9 +88,11 @@ def run_pipeline():
                 result["category"] = category
                 all_results.append(result)
                 
-                if "漏洞" in result["status"] or "Bug" in result["status"] or "超时" in result["status"]:
+                current_status = result.get("status", "")
+                if current_status in FAILED_STATUSES:
                     vuln_count += 1
                     vuln_modules.append(test_name)
+                    logging.warning(f"模块 {test_name} 检出异常: {current_status}")
                 
                 time.sleep(3) 
             except Exception as e:
@@ -116,7 +118,7 @@ def run_pipeline():
         send_im_alert(vuln_count, current_run_dir, vuln_modules, run_url)
         sys.exit(1)
     else:
-        logging.info(" 未发现漏洞！")
+        logging.info("未发现漏洞，测试通过！")
         sys.exit(0)
 if __name__ == "__main__":
     run_pipeline()

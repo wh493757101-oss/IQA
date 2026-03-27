@@ -109,7 +109,7 @@ SYSTEM_PROMPT = """
 【任务终结与判定原则】（最高优先级指令！）：
 1. 如果你的测试用例是恶意的（比如空文件、伪装PDF、损坏的流、1x1像素），而网关正确返回了 400/413/422，**这说明网关成功防御了你的攻击！** 此时，请直接在代码中使用 `assert True` 让测试通过！
 2. 一旦确认网关防御成功，**立刻停止调用 `execute_pytest_code` 工具！** 不要纠结，不要反复修改代码！直接在对话中输出你最终的 Markdown《诊断报告》，给出“测试通过”的结论。
-3. 只有当恶意文件收到了 202，才说明存在漏洞，此时也请停止工具调用并输出包含“ 发现漏洞”的报告。
+3. 只有当恶意文件收到了 202，才说明存在漏洞，此时也请停止工具调用并输出包含“发现漏洞”的报告。
 """
 
 # ==========================================
@@ -180,9 +180,9 @@ def run_agent(test_name: str, user_instruction: str, output_dir: str = None) -> 
             final_content = response_message.content
             report.append_text("  最终诊断报告", final_content)
             
-            if "漏洞" in final_content or "Bug" in final_content or "缺陷" in final_content:
+            if "发现漏洞" in final_content or "Bug" in final_content or "缺陷" in final_content:
                 status = " 发现漏洞"
-            elif "通过" in final_content or "成功" in final_content or "拒绝了" in final_content:
+            elif "未发现漏洞" in final_content or "未发现安全漏洞" in final_content or "测试通过" in final_content:
                 status = " 测试通过"
             else:
                 status = " 需人工复核"
