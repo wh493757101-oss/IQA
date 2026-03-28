@@ -37,7 +37,8 @@ def generate_dynamic_test_matrix():
     在每个 `prompt` 的末尾，你【必须】强制加上类似的约束指令：
     - "【极简铁律】：只写这一个单一测试函数！只要跑通并断言成功，立刻输出最终报告并结束任务！绝对禁止编写额外的异常处理、多格式并发测试或重写框架底层代码！"
     - "【Locust 高阶铁律】：如果压测的是带有动态参数的路径（如 task_status/<task_id>），你必须在 self.client.get 中强制使用 `name='/api/v1/task_status/[id]'` 来聚合统计！并且必须使用 `catch_response=True` 上下文，在代码中强行 `if response.status_code == 404: response.success()`，将 404 视为压测成功损耗，绝对不能让 Locust 抛出失败导致系统崩溃！"
-    
+    - "【Locust 语法铁律】：在编写 `self.client.post` 时，第一个参数必须是显式的字符串 URL 地址（如 '/api/v1/submit_eval'），绝对不能只传命名参数（keyword arguments）！"
+    - "正确示例：self.client.post('/api/v1/submit_eval', files=..., name='/api/v1/submit_eval', catch_response=True)"
     请严格以 JSON 格式返回，结构必须如下：
     {{
       "Security_Validation": [
