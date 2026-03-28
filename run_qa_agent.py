@@ -37,8 +37,12 @@ class MarkdownReporter:
         with open(self.filepath, "a", encoding="utf-8") as f:
             f.write(f"###  {title}\n\n```text\n{result}\n```\n\n---\n")
 
+api_key = os.environ.get("DEEPSEEK_API_KEY")
+if not api_key:
+    raise ValueError(" Not Found DEEPSEEK_API_KEY ")
+
 client = OpenAI(
-    api_key="sk-bbc6b57c5cc940ac994ab60cfddd0910",
+    api_key=api_key, 
     base_url="https://api.deepseek.com"
 )
 
