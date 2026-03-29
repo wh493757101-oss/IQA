@@ -7,6 +7,30 @@ import urllib.request
 import redis
 import logging
 import base64
+import datetime 
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+
+DB_URL = "mysql+pymysql://root:visionguard_pwd@localhost:3306/visionguard_db"
+
+engine = create_engine(DB_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+class EvalRecord(Base):
+    __tablename__ = "eval_records"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String(255), unique=True, index=True)
+    filename = Column(String(255))
+    mode = Column(String(50))
+    score = Column(Float, nullable=True) 
+    cost_time_ms = Column(Integer)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+Base.metadata.create_all(bind=engine)
+# 👆 -------------------------------------- 👆
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,7 +64,6 @@ def process_single_task(task_data, redis_client):
         
         gt_bytes = base64.b64decode(task_data["gt_b64"]) if task_data.get("gt_b64") else b""
 
-
         if gt_bytes: 
             gt_arr = np.frombuffer(gt_bytes, np.uint8)
             gt_img = cv2.imdecode(gt_arr, cv2.IMREAD_COLOR)
@@ -63,23 +86,63 @@ def process_single_task(task_data, redis_client):
                 "Conclusion": "Excellent" if brisque_score < 35 else "Degraded" if brisque_score < 60 else "Poor"
             }
 
-
         cost_time = (time.time() - start_time) * 1000
+        
+       
         redis_client.hset(redis_key, mapping={
             "status": status_msg,
             "metrics_json": json.dumps(metrics_json),
             "cost_time_ms": str(cost_time)
         })
-        logging.info(f"Finished {filename} | Mode: {metrics_json['Mode']} | Cost: {int(cost_time)}ms")
+
+        db = SessionLocal()
+        try:
+           
+            score_val = metrics_json.get("BRISQUE_Score") or metrics_json.get("PSNR_dB")
+            
+            new_record = EvalRecord(
+                task_id=task_id,
+                filename=filename,
+                mode=metrics_json.get("Mode"),
+                score=float(score_val) if score_val else 0.0,
+                cost_time_ms=int(cost_time)
+            )
+            db.add(new_record)
+            db.commit() 
+            logging.info(f" MySQL 存档成功: Task {task_id[:8]}... 耗时: {int(cost_time)}ms")
+        except Exception as db_err:
+            logging.error(f" MySQL 写入失败: {db_err}")
+            db.rollback()
+        finally:
+            db.close()
+        # 👆 ---------------------------- 👆
+
         return True
 
     except Exception as e:
         logging.error(f"Worker crashed on task: {str(e)}")
         redis_client.hset(redis_key, mapping={"status": "failed", "error": str(e)})
+        
+        db = SessionLocal()
+        try:
+            error_record = EvalRecord(
+                task_id=task_id,
+                filename=filename,
+                mode="CRASHED",   
+                score=-1.0,       
+                cost_time_ms=0
+            )
+            db.add(error_record)
+            db.commit()
+        except Exception as db_err:
+            logging.error(f" 记录失败状态到MySQL时出错: {db_err}")
+            db.rollback()
+        finally:
+            db.close()       
         return False
 
 
-def run_worker():# pragma: no cover
+def run_worker():
     ensure_brisque_models()
     redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
     logging.info("Worker started! Waiting for tasks in 'iqa:task_queue'...")
@@ -98,5 +161,5 @@ def run_worker():# pragma: no cover
             logging.error(f"Worker loop error: {str(e)}")
             time.sleep(1) 
 
-if __name__ == "__main__":# pragma: no cover
+if __name__ == "__main__":
     run_worker()

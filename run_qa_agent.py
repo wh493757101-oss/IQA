@@ -107,13 +107,22 @@ SYSTEM_PROMPT = """
 2. 网关目前拥有极度强悍的安全防御（扩展名、大小、魔数、最小分辨率 10x10 校验）。如果是不合法文件、伪装文件或极限小文件，它会直接返回 HTTP 400, 422 或 413。
 3. 真实计算在后台。对于合法请求，网关瞬间返回 202 和 task_id。你必须编写带有 `time.sleep(1)` 的轮询逻辑去请求 `/api/v1/task_status/{task_id}`。
 
+【端到端与数据库断言铁律】（针对深度测试任务！）：
+如果用户的指令要求验证“端到端”或“数据落盘”，你生成的 Pytest 代码必须包含以下逻辑：
+1. HTTP 接口断言：确认接口返回 202 并提取 task_id。
+2. 数据库直连：使用 `from sqlalchemy import create_engine, text` 连接底层数据库。
+   - 数据库URL: `mysql+pymysql://root:visionguard_pwd@localhost:3306/visionguard_db`
+   - 表名: `eval_records`
+3. 数据库轮询与断言：写一个循环查询 `SELECT * FROM eval_records WHERE task_id = '...'`。一旦查到数据，必须对提取出的 `score`（必须>0）和 `cost_time_ms`（必须>0）进行断言校验！
+4. 数据清理 (Teardown)【极其重要】：在断言全部通过后，你【必须】在脚本末尾执行一条 SQL 删除语句（如 DELETE FROM eval_records WHERE task_id = '...'），将你刚刚造的测试数据彻底清理掉，绝对不允许污染数据库！
+
 【沙箱代码编写铁律】（务必遵守！）：
 1. 你的主函数必须以 `test_` 开头（例如 `def test_upload_pdf():`），绝对不要只写 `if __name__ == "__main__":` 的普通脚本！因为这是在 Pytest 沙箱中运行的。
 
 【任务终结与判定原则】（最高优先级指令！）：
 1. 如果你的测试用例是恶意的（比如空文件、伪装PDF、损坏的流、1x1像素），而网关正确返回了 400/413/422，**这说明网关成功防御了你的攻击！** 此时，请直接在代码中使用 `assert True` 让测试通过！
-2. 一旦确认网关防御成功，**立刻停止调用 `execute_pytest_code` 工具！** 不要纠结，不要反复修改代码！直接在对话中输出你最终的 Markdown《诊断报告》，给出“测试通过”的结论。
-3. 只有当恶意文件收到了 202，才说明存在漏洞，此时也请停止工具调用并输出包含“发现漏洞”的报告。
+2. 一旦确认网关防御成功或数据库落盘断言成功，**立刻停止调用 `execute_pytest_code` 工具！** 不要纠结，不要反复修改代码！直接在对话中输出你最终的 Markdown《诊断报告》，给出“测试通过”的结论。
+3. 只有当预期该防御的没防住，或预期该落盘的数据没落盘，才说明存在漏洞，此时也请停止工具调用并输出包含“发现漏洞”的报告。
 """
 
 def run_agent(test_name: str, user_instruction: str, output_dir: str = None) -> dict:

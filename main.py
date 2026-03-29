@@ -10,6 +10,24 @@ from contextlib import asynccontextmanager
 import redis.asyncio as redis
 import io
 from PIL import Image, UnidentifiedImageError
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+
+DB_URL = "mysql+pymysql://root:visionguard_pwd@localhost:3306/visionguard_db"
+engine = create_engine(DB_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class EvalRecord(Base):
+    __tablename__ = "eval_records"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(String(255), unique=True, index=True)
+    filename = Column(String(255))
+    mode = Column(String(50))
+    score = Column(Float, nullable=True)
+    cost_time_ms = Column(Integer)
+    created_at = Column(DateTime)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,13 +59,10 @@ app = FastAPI(
     lifespan=lifespan 
 )
 
-# ==========================================
-# 🛡️ 核心基建：安全校验拦截器 (防黑客核心)
-# ==========================================
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB 大小限制
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 
 ALLOWED_EXTS = {'jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp'}
 
-# 常见图片的真实二进制文件头 (Magic Numbers)
+
 MAGIC_NUMBERS = {
     b'\xff\xd8\xff': 'jpeg',
     b'\x89PNG\r\n\x1a\n': 'png',
@@ -69,7 +84,7 @@ async def secure_read_file(file: UploadFile, is_optional: bool = False) -> bytes
     if not file or not file.filename:
         return b""
         
-    # 【防御第一层】：扩展名速筛 (防君子)
+
     ext = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
     if ext not in ALLOWED_EXTS:
         raise HTTPException(status_code=422, detail=f"安全拦截：不支持的文件扩展名 '{ext}'")
@@ -79,19 +94,17 @@ async def secure_read_file(file: UploadFile, is_optional: bool = False) -> bytes
     if not content and is_optional:
         return b""
 
-    # 【防御第二层】：文件大小与空文件校验 (防内存溢出 OOM)
+
     if len(content) == 0:
         raise HTTPException(status_code=422, detail="安全拦截：文件内容不能为空 (0 bytes)")
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="安全拦截：文件大小超出 10MB 限制")
 
-    # 【防御第三层】：底层二进制魔数校验 (防黑客伪装扩展名)
     if not is_real_image(content):
         raise HTTPException(status_code=422, detail="安全拦截：检测到文件伪装！底层的二进制流并非图片。")
 
-    # 【防御第四层】：图像尺寸与完整性校验 (防 1x1 像素 DoS 攻击)
+
     try:
-        # Image.open 配合 BytesIO 非常轻量，只会解析图片头部元数据
         with Image.open(io.BytesIO(content)) as img:
             width, height = img.size
             if width < 10 or height < 10:
@@ -101,22 +114,17 @@ async def secure_read_file(file: UploadFile, is_optional: bool = False) -> bytes
 
     return content
 
-# ==========================================
-# 🚀 业务路由
-# ==========================================
 @app.post("/api/v1/submit_eval")
 async def submit_evaluation(
     pred_file: UploadFile = File(...),
     gt_file: Optional[UploadFile] = File(None)
 ):
-    # 1. 经过安全拦截器，读取绝对安全的 bytes
     pred_bytes = await secure_read_file(pred_file)
     gt_bytes = await secure_read_file(gt_file, is_optional=True)
 
     task_id = str(uuid.uuid4())
     redis_key = f"iqa:task:{task_id}"
 
-    # 2. 存入 Redis
     await redis_client.hset(redis_key, mapping={
         "task_id": task_id,
         "status": "pending",
@@ -124,7 +132,6 @@ async def submit_evaluation(
     })
     await redis_client.expire(redis_key, 86400)
 
-    # 3. 推入消息队列交由 OpenCV Worker 处理
     task_payload = {
         "task_id": task_id,
         "filename": pred_file.filename,
@@ -161,6 +168,29 @@ async def serve_webpage():
             return f.read()
     except FileNotFoundError:
         return "<h1>VisionGuard Gateway Running</h1>"
+@app.get("/api/v1/history")
+def get_history(limit: int = 50):
+    """获取最近的图像评测历史记录"""
+    db = SessionLocal()
+    try:
+        records = db.query(EvalRecord).order_by(EvalRecord.id.desc()).limit(limit).all()
+        results = []
+        for r in records:
+            results.append({
+                "task_id": r.task_id,
+                "filename": r.filename,
+                "mode": r.mode,
+                "score": r.score,
+                "cost_time_ms": r.cost_time_ms,
+                "created_at": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None
+            })
+            
+        return {"code": 200, "message": "success", "data": results}
+        
+    except Exception as e:
+        return {"code": 500, "message": f"查询数据库失败: {str(e)}"}
+    finally:
+        db.close()      
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
