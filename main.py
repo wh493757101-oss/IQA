@@ -14,7 +14,8 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
-DB_URL = "mysql+pymysql://root:visionguard_pwd@localhost:3306/visionguard_db"
+db_pwd = os.environ.get("DB_PASSWORD", "visionguard_pwd")
+DB_URL = f"mysql+pymysql://root:{db_pwd}@localhost:3306/visionguard_db"
 engine = create_engine(DB_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

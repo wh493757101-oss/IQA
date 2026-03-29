@@ -4,3 +4,13 @@ python-multipart
 numpy
 redis
 opencv-contrib-python-headless
+#  数据库核心依赖
+sqlalchemy
+pymysql
+cryptography
+# 测试与AI依赖
+requests
+pytest
+Pillow
+openai
+locust

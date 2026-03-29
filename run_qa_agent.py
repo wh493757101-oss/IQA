@@ -110,8 +110,11 @@ SYSTEM_PROMPT = """
 【端到端与数据库断言铁律】（针对深度测试任务！）：
 如果用户的指令要求验证“端到端”或“数据落盘”，你生成的 Pytest 代码必须包含以下逻辑：
 1. HTTP 接口断言：确认接口返回 202 并提取 task_id。
-2. 数据库直连：使用 `from sqlalchemy import create_engine, text` 连接底层数据库。
-   - 数据库URL: `mysql+pymysql://root:visionguard_pwd@localhost:3306/visionguard_db`
+2. 数据库直连：使用 sqlalchemy 连接。
+   - 数据库URL必须动态构建：
+     import os
+     pwd = os.environ.get("DB_PASSWORD", "visionguard_pwd")
+     url = f"mysql+pymysql://root:{pwd}@localhost:3306/visionguard_db"
    - 表名: `eval_records`
 3. 数据库轮询与断言：写一个循环查询 `SELECT * FROM eval_records WHERE task_id = '...'`。一旦查到数据，必须对提取出的 `score`（必须>0）和 `cost_time_ms`（必须>0）进行断言校验！
 4. 数据清理 (Teardown)【极其重要】：在断言全部通过后，你【必须】在脚本末尾执行一条 SQL 删除语句（如 DELETE FROM eval_records WHERE task_id = '...'），将你刚刚造的测试数据彻底清理掉，绝对不允许污染数据库！

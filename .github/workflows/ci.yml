@@ -16,8 +16,8 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: visionguard_pwd  
-          MYSQL_DATABASE: visionguard_db        
+          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MYSQL_DATABASE: visionguard_db     
         ports:
           - 3306:3306
         options: >-
@@ -46,14 +46,19 @@ jobs:
         pip install pytest pytest-cov pytest-asyncio httpx requests openai pillow locust redis fastapi uvicorn
 
     - name:  启动 VisionGuard 网关后台服务
+      env:
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       run: |
         nohup python main.py > gateway.log 2>&1 &
-        sleep 5 
+        nohup python worker.py > worker.log 2>&1 &
+        sleep 15 
+        curl -f http://127.0.0.1:8000/openapi.json || (cat gateway.log && exit 1)
 
     - name:  启动 AI QA Agent 进行黑白盒攻防检测
       env:
         DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         IM_WEBHOOK_URL: ${{ secrets.IM_WEBHOOK_URL }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       run: |
         python ci_pipeline.py
 
