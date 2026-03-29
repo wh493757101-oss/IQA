@@ -32,7 +32,7 @@ def generate_dynamic_test_matrix():
     2. "Algorithm_Robustness" (算法容错：如极小分辨率、损坏的图像流等)
     3. "WhiteBox_Unit_Test" (白盒单元测试：直接 import worker.py，Mock Redis 测试不同逻辑分支)
     4. "Full_Flow_Integration" (端到端集成测试：使用 httpx 上传真实文件，拿到 task_id 后，在代码中手动调用 process_single_task 去消费队列，最后验证状态流转)
-    5. "Performance_Load" (性能压测：使用 locust 编写压测脚本)
+    5. "Performance_Data_Reconciliation" (性能压测与数据对账：【最高级指令】使用 Locust 模拟 100 个并发进行 10 秒压测。压测结束后，你必须通过 sqlalchemy 直连数据库执行 `SELECT COUNT(*) FROM eval_records`，对比数据库记录总数是否等于 Locust 成功发送的请求总数，实现“零丢单”自动化对账！)
     6. "E2E_Database_Persistence" (端到端数据落盘断言测试：【极其重要】要求 Agent 必须使用 requests 发起真实评测，获取 task_id，然后使用 sqlalchemy 直连 MySQL 数据库进行轮询，精确断言 score 和 cost_time_ms 是否正确落盘！)
     7. "Poison_Pill_Crash_Test" (毒药载荷与异常断言：【最高级指令】构造一个包含随机乱码但扩展名为 .png 的严重损坏文件绕过网关，强制触发后台 Worker 的 except 崩溃！随后使用 sqlalchemy 直连 MySQL，断言该 task_id 的记录是否成功落盘，且 mode=='CRASHED', score==-1.0。最后必须 DELETE 这条脏数据！)
     【 最高级架构铁律 (防止底层 Agent 崩溃)】：
