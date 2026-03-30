@@ -1,6 +1,18 @@
 version: '3.8'
 
 services:
+  mysql-server:
+    image: mysql:8.0
+    container_name: visionguard-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-visionguard_pwd}
+      MYSQL_DATABASE: visionguard_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - /data/visionguard/mysql_data:/var/lib/mysql
+
   redis-server:
     image: redis:alpine   
     ports:
@@ -12,18 +24,23 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - redis-server    
+      - redis-server
+      - mysql-server   
     restart: always
     environment:
-      - REDIS_HOST=redis-server 
-
+      - REDIS_HOST=redis-server
+      - MYSQL_HOST=mysql-server 
+      - DB_PASSWORD=${DB_PASSWORD:-visionguard_pwd}
   vision-worker:
     image: wh493757101-oss/visionguard:latest
     command: python worker.py 
     depends_on:
-      - redis-server        
+      - redis-server
+      - mysql-server   
     restart: always
     environment:
       - REDIS_HOST=redis-server
+      - MYSQL_HOST=mysql-server 
+      - DB_PASSWORD=${DB_PASSWORD:-visionguard_pwd}
     deploy:
-      replicas: 3
+      replicas: 3 

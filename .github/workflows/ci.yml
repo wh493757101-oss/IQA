@@ -98,16 +98,17 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/visionguard:${{ github.sha }}
 
     
-      #- name:  触发生产服务器更新
-       # uses: appleboy/ssh-action@master
-       # with:
-          #host: ${{ secrets.SERVER_HOST }}     
-          #username: ${{ secrets.SERVER_USER }} 
-          #key: ${{ secrets.SERVER_SSH_KEY }}   
-          #script: |
-            #echo " 开始部署 VisionGuard..."
-            #docker pull ${{ secrets.DOCKER_USERNAME }}/visionguard:latest
-            #docker stop visionguard-gateway || true
-            #docker rm visionguard-gateway || true
-            #docker run -d --name visionguard-gateway -p 8000:8000 ${{ secrets.DOCKER_USERNAME }}/visionguard:latest
-            #echo " 部署完成"
+      #- name: 触发生产服务器更新 
+    #  uses: appleboy/ssh-action@master
+    #  with:
+    #    host: ${{ secrets.SERVER_HOST }}     
+    #    username: ${{ secrets.SERVER_USER }} 
+    #    key: ${{ secrets.SERVER_SSH_KEY }}   
+    #    script: |
+    #      echo " 开始部署 VisionGuard..."
+    #      cd /data/visionguard 
+    #      # 1. 拉取远端最新镜像 (网关和Worker)
+    #      docker-compose pull
+    #      docker-compose up -d
+    #      docker image prune -f
+    #      echo "生产环境更新完成"

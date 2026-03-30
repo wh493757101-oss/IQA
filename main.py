@@ -13,6 +13,8 @@ import os
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 
 db_pwd = os.environ.get("DB_PASSWORD", "visionguard_pwd")
@@ -60,7 +62,7 @@ app = FastAPI(
     description="I/O 异步网关",
     lifespan=lifespan 
 )
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 
 ALLOWED_EXTS = {'jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp'}
 
@@ -193,6 +195,9 @@ def get_history(limit: int = 50):
         return {"code": 500, "message": f"查询数据库失败: {str(e)}"}
     finally:
         db.close()      
+@app.get("/")
+def read_root():
+    return RedirectResponse(url="/static/index.html")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000)
