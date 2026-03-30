@@ -31,7 +31,6 @@ class EvalRecord(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)
-# 👆 -------------------------------------- 👆
 
 logging.basicConfig(
     level=logging.INFO,
@@ -116,7 +115,6 @@ def process_single_task(task_data, redis_client):
             db.rollback()
         finally:
             db.close()
-        # 👆 ---------------------------- 👆
 
         return True
 

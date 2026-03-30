@@ -165,7 +165,6 @@ def run_batch_test():
                 if "FR" in mode:
                     score = f"PSNR: {res['metrics'].get('PSNR_dB')} dB"
                 else:
-                    # 适配不同的盲评指标 (BRISQUE / NIQE / Laplacian)
                     if "BRISQUE_Score" in res['metrics']:
                         score = f"BRISQUE: {res['metrics']['BRISQUE_Score']} | Result: {res['metrics'].get('Conclusion')}"
                     elif "NIQE_Score" in res['metrics']:

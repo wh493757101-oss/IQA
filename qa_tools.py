@@ -108,7 +108,6 @@ def execute_pytest_code(code_string: str) -> str:
     finally:
         if os.path.exists(file_name):
             os.remove(file_name)
-# 请原封不动追加到 qa_tools.py 的最下面，并按 Ctrl+S 保存：
 
 def execute_locust_load_test(code_string: str) -> str:
     """
